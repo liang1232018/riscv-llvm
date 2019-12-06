@@ -248,6 +248,13 @@ static bool asanUseGlobalsGC(const Triple &T, const CodeGenOptions &CGOpts) {
   return false;
 }
 
+// Support for SMA 
+static void addSMAPasses(const PassManagerBuilder &Builder, legacy::PassManagerBase &PM) {
+
+	//If there were arguments to add to your pass(es) you would do it here
+	PM.add(llvm::createSMAPass()); 
+}
+
 static void addAddressSanitizerPasses(const PassManagerBuilder &Builder,
                                       legacy::PassManagerBase &PM) {
   const PassManagerBuilderWrapper &BuilderWrapper =
@@ -683,6 +690,14 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
                            addDataFlowSanitizerPass);
     PMBuilder.addExtension(PassManagerBuilder::EP_EnabledOnOptLevel0,
                            addDataFlowSanitizerPass);
+  }
+
+ // Support for SMA
+  if (LangOpts.Sanitize.hasOneOf(SanitizerKind::SMA)) {
+    PMBuilder.addExtension(PassManagerBuilder::EP_OptimizerLast,
+                           addSMAPasses);
+    PMBuilder.addExtension(PassManagerBuilder::EP_EnabledOnOptLevel0,
+                           addSMAPasses);
   }
 
   // Set up the per-function pass manager.

@@ -145,6 +145,11 @@ struct InstrProfOptions {
   InstrProfOptions() = default;
 };
 
+// Insert Hello instrumentation
+// ModulePass *createHelloPass();
+ModulePass *createSMAPass();
+
+
 /// Insert frontend instrumentation based profiling. Parameter IsCS indicates if
 // this is the context senstive instrumentation.
 ModulePass *createInstrProfilingLegacyPass(

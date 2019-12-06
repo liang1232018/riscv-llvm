@@ -964,6 +964,11 @@ SanitizerMask ToolChain::getSupportedSanitizers() const {
   if (getTriple().getArch() == llvm::Triple::aarch64 ||
       getTriple().getArch() == llvm::Triple::aarch64_be)
     Res |= SanitizerKind::MemTag;
+  // Support for SMA
+  if (getTriple().getArch() == llvm::Triple::x86_64 ||
+      getTriple().getArch() == llvm::Triple::aarch64 || 
+      getTriple().getArch() == llvm::Triple::riscv64 )
+    Res |= SanitizerKind::SMA;
   return Res;
 }
 

@@ -706,6 +706,9 @@ collectSanitizerRuntimes(const ToolChain &TC, const ArgList &Args,
         StaticRuntimes.push_back("scudo_cxx");
     }
   }
+  // Support for SMA
+  if (SanArgs.needsSMARt())
+    StaticRuntimes.push_back("sma");
 }
 
 // Should be called before we add system libraries (C++ ABI, libstdc++/libc++,

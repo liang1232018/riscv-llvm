@@ -58,6 +58,9 @@ class SanitizerArgs {
   /// Parses the sanitizer arguments from an argument list.
   SanitizerArgs(const ToolChain &TC, const llvm::opt::ArgList &Args);
 
+  // Support for SMA
+  bool needsSMARt() const { return Sanitizers.has(SanitizerKind::SMA); }
+
   bool needsSharedRt() const { return SharedRuntime; }
 
   bool needsAsanRt() const { return Sanitizers.has(SanitizerKind::Address); }

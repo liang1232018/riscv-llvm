@@ -304,6 +304,9 @@ set(ALL_XRAY_SUPPORTED_ARCH ${X86_64} ${ARM32} ${ARM64} ${MIPS32} ${MIPS64} powe
 endif()
 set(ALL_SHADOWCALLSTACK_SUPPORTED_ARCH ${ARM64})
 
+#Specify to the build systems the supported architecture for your sanitizer
+set(ALL_SMA_SUPPORTED_ARCH ${X86_64} ${ARM64} ${RISCV64})
+
 if(APPLE)
   include(CompilerRTDarwinUtils)
 
@@ -475,6 +478,12 @@ if(APPLE)
     ALL_SANITIZER_COMMON_SUPPORTED_ARCH
     COMPILER_RT_SUPPORTED_ARCH
     )
+  #This part compares compability of various parts of the build system
+	#The supported architectures that your sanitizer can run on is limited by
+	#What the sanitizer common libraries support if you use them.
+  list_intersect(SMA_SUPPORTED_ARCH
+	  ALL_SMA_SUPPORTED_ARCH
+	  SANITIZER_COMMON_SUPPORTED_ARCH)
   set(LSAN_COMMON_SUPPORTED_ARCH ${SANITIZER_COMMON_SUPPORTED_ARCH})
   set(UBSAN_COMMON_SUPPORTED_ARCH ${SANITIZER_COMMON_SUPPORTED_ARCH})
   list_intersect(ASAN_SUPPORTED_ARCH
@@ -555,6 +564,7 @@ else()
   filter_available_targets(SHADOWCALLSTACK_SUPPORTED_ARCH
     ${ALL_SHADOWCALLSTACK_SUPPORTED_ARCH})
   filter_available_targets(GWP_ASAN_SUPPORTED_ARCH ${ALL_GWP_ASAN_SUPPORTED_ARCH})
+  filter_available_targets(SMA_SUPPORTED_ARCH ${ALL_SMA_SUPPORTED_ARCH})
 endif()
 
 if (MSVC)
@@ -576,7 +586,7 @@ if(COMPILER_RT_SUPPORTED_ARCH)
 endif()
 message(STATUS "Compiler-RT supported architectures: ${COMPILER_RT_SUPPORTED_ARCH}")
 
-set(ALL_SANITIZERS asan;dfsan;msan;hwasan;tsan;safestack;cfi;scudo;ubsan_minimal;gwp_asan)
+set(ALL_SANITIZERS asan;dfsan;msan;hwasan;tsan;safestack;cfi;scudo;ubsan_minimal;gwp_asan;sma)
 set(COMPILER_RT_SANITIZERS_TO_BUILD all CACHE STRING
     "sanitizers to build if supported on the target (all;${ALL_SANITIZERS})")
 list_replace(COMPILER_RT_SANITIZERS_TO_BUILD all "${ALL_SANITIZERS}")
@@ -719,6 +729,13 @@ if (COMPILER_RT_HAS_SANITIZER_COMMON AND SHADOWCALLSTACK_SUPPORTED_ARCH AND
   set(COMPILER_RT_HAS_SHADOWCALLSTACK TRUE)
 else()
   set(COMPILER_RT_HAS_SHADOWCALLSTACK FALSE)
+endif()
+
+if (COMPILER_RT_HAS_SANITIZER_COMMON AND SMA_SUPPORTED_ARCH AND 
+		OS_NAME MATCHES "Linux")
+	set(COMPILER_RT_HAS_SMA TRUE)
+else() 
+	set(COMPILER_RT_HAS_SMA FALSE) 
 endif()
 
 # Note: Fuchsia and Windows are not currently supported by GWP-ASan. Support

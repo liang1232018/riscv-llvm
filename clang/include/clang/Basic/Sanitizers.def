@@ -36,6 +36,8 @@
 #define SANITIZER_GROUP(NAME, ID, ALIAS)
 #endif
 
+// Saturation Memory Access
+SANITIZER("sma", SMA)
 
 // AddressSanitizer
 SANITIZER("address", Address)
