@@ -256,6 +256,7 @@ std::string EVT::getEVTString() const {
   case MVT::Metadata:return "Metadata";
   case MVT::Untyped: return "Untyped";
   case MVT::exnref : return "exnref";
+  case MVT::iMINFATPTR: return "iMINFATPTR";
   }
 }
 
@@ -440,6 +441,9 @@ Type *EVT::getTypeForEVT(LLVMContext &Context) const {
   case MVT::nxv8f64: 
     return VectorType::get(Type::getDoubleTy(Context), 8, /*Scalable=*/ true);
   case MVT::Metadata: return Type::getMetadataTy(Context);
+  case MVT::iMINFATPTR:
+    // todo 200 seems like the address space, but need to check
+    return PointerType::get(Type::getInt8Ty(Context),200);
   }
 }
 
@@ -462,7 +466,16 @@ MVT MVT::getVT(Type *Ty, bool HandleUnknown){
   case Type::X86_MMXTyID:   return MVT(MVT::x86mmx);
   case Type::FP128TyID:     return MVT(MVT::f128);
   case Type::PPC_FP128TyID: return MVT(MVT::ppcf128);
-  case Type::PointerTyID:   return MVT(MVT::iPTR);
+  case Type::PointerTyID:   {
+    // follow cheri
+    // FIXME: require a DataLayout here!
+    // this function isMinFatPointer is from IR level, when there is no DataLayout available
+    // I build some sample programs, it seems like this is useless, so we don't use it now
+    // todo check whether this is useful or not, I think this is used to add a node during the backend in SelectionDag
+    // if (isMinFatPointer(Ty, nullptr))
+    //   return MVT(MVT::iMINFATPTR);
+    return MVT(MVT::iPTR);
+  }
   case Type::VectorTyID: {
     VectorType *VTy = cast<VectorType>(Ty);
     return getVectorVT(

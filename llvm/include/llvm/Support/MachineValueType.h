@@ -219,8 +219,12 @@ namespace llvm {
 
       exnref         =  134,   // WebAssembly's exnref type
 
+      iMINFATPTR     =  135,   // C-RISC-V 64 bit MinFat Pointer Type
+      FIRST_MINFAT_POINTER = iMINFATPTR,
+      LAST_MINFAT_POINTER = iMINFATPTR,
+
       FIRST_VALUETYPE = 1,     // This is always the beginning of the list.
-      LAST_VALUETYPE =  135,   // This always remains at the end of the list.
+      LAST_VALUETYPE =  136,   // This always remains at the end of the list.
 
       // This is the current maximum for LAST_VALUETYPE.
       // MVT::MAX_ALLOWED_VALUETYPE is used for asserts and to size bit vectors
@@ -298,6 +302,11 @@ namespace llvm {
                SimpleTy <= MVT::LAST_INTEGER_FIXEDLEN_VECTOR_VALUETYPE) ||
               (SimpleTy >= MVT::FIRST_INTEGER_SCALABLE_VECTOR_VALUETYPE &&
                SimpleTy <= MVT::LAST_INTEGER_SCALABLE_VECTOR_VALUETYPE));
+    }
+
+    bool isMinFatPointer() const {
+      return (SimpleTy >= MVT::FIRST_MINFAT_POINTER &&
+              SimpleTy <= MVT::LAST_MINFAT_POINTER);
     }
 
     /// Return true if this is an integer, not including vectors.
@@ -684,6 +693,7 @@ namespace llvm {
         llvm_unreachable("Value type is non-standard value, Other.");
       case iPTR:
         llvm_unreachable("Value type size is target-dependent. Ask TLI.");
+      case iMINFATPTR: return TypeSize::Fixed(64);
       case iPTRAny:
       case iAny:
       case fAny:
@@ -913,6 +923,11 @@ namespace llvm {
       case 128:
         return MVT::i128;
       }
+    }
+
+    static MVT getMinFatPointerVT(unsigned BitWidth) {
+        // todo : if future has 32 or 24 bit
+        return MVT::iMINFATPTR;
     }
 
     static MVT getVectorVT(MVT VT, unsigned NumElements) {
