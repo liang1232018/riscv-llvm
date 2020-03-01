@@ -183,8 +183,9 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
   }
 
   setOperationAction(ISD::GlobalAddress, XLenVT, Custom);
-  setOperationAction(ISD::BlockAddress, XLenVT, Custom);
+  setOperationAction(ISD::BlockAddress, MVT::i128, Custom);
   setOperationAction(ISD::ConstantPool, XLenVT, Custom);
+  setOperationAction(ISD::STORE, MVT::i128, Custom);
 
   setOperationAction(ISD::GlobalTLSAddress, XLenVT, Custom);
 

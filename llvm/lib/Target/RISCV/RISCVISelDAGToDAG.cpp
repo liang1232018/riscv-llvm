@@ -19,6 +19,9 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
+#include <iostream>
+#include <vector>
+
 using namespace llvm;
 
 #define DEBUG_TYPE "riscv-isel"
@@ -56,11 +59,13 @@ public:
 
 private:
   void doPeepholeLoadStoreADDI();
+  void Select_PointerSaturatedArthmetic();
 };
 }
 
 void RISCVDAGToDAGISel::PostprocessISelDAG() {
   doPeepholeLoadStoreADDI();
+  Select_PointerSaturatedArthmetic();
 }
 
 static SDNode *selectImm(SelectionDAG *CurDAG, const SDLoc &DL, int64_t Imm,
@@ -84,6 +89,8 @@ static SDNode *selectImm(SelectionDAG *CurDAG, const SDLoc &DL, int64_t Imm,
   return Result;
 }
 
+std::vector<SDNode*> memory_related_operation; 
+
 // Returns true if the Node is an ISD::AND with a constant argument. If so,
 // set Mask to that constant value.
 static bool isConstantMask(SDNode *Node, uint64_t &Mask) {
@@ -93,6 +100,126 @@ static bool isConstantMask(SDNode *Node, uint64_t &Mask) {
     return true;
   }
   return false;
+}
+
+
+void RISCVDAGToDAGISel::Select_PointerSaturatedArthmetic()
+{
+    SelectionDAG::allnodes_iterator Position(CurDAG->getRoot().getNode());
+  ++Position;
+
+  while (Position != CurDAG->allnodes_begin()) {
+    SDNode *N = &*--Position;
+    // Skip dead nodes and any non-machine opcodes.
+    if (N->use_empty() || !N->isMachineOpcode())
+      continue;
+
+    int OffsetOpIdx;
+    int BaseOpIdx;
+
+    // Only attempt this optimisation for I-type loads and S-type stores.
+    switch (N->getMachineOpcode()) {
+    default:
+      continue;
+    case RISCV::LB:
+    case RISCV::LH:
+    case RISCV::LW:
+    case RISCV::LBU:
+    case RISCV::LHU:
+    case RISCV::LWU:
+    case RISCV::LD:
+    case RISCV::FLW:
+    case RISCV::FLD:
+      BaseOpIdx = 0;
+      OffsetOpIdx = 1;
+      break;
+    case RISCV::SB:
+    case RISCV::SH:
+    case RISCV::SW:
+    case RISCV::SD:
+    case RISCV::FSW:
+    case RISCV::FSD:
+      BaseOpIdx = 1;
+      OffsetOpIdx = 2;
+      break;
+    }
+
+    SDValue Base = N->getOperand(BaseOpIdx);
+    printf("success!! %d\n",Base.getSimpleValueType());
+
+    // If the base is an ADD, we can merge it in to the load/store.
+    if (!Base.isMachineOpcode() || Base.getMachineOpcode() != RISCV::ADD)
+      continue;
+
+    SDValue Op0 = Base.getOperand(0);
+
+    printf("success2!! %d\n",Op0.getSimpleValueType());
+
+    SDValue Op1 = Base.getOperand(1);
+
+    SDNode* Node = Base.getNode();
+    SDLoc DL(Node);
+    EVT VT = Node->getValueType(0);
+
+    ReplaceNode(Node, CurDAG->getMachineNode(RISCV::OINCP, DL, VT,Op0,Op1));
+  }
+
+  // case ISD::ADD: {
+  //   printf("ADD operation\n");
+  //   auto it = Node->use_begin();
+
+  //   bool flag = true;
+
+  //   while (it != Node->use_end())
+  //   {
+  //     if (it->isMachineOpcode ())
+  //     {
+  //       SDValue Op0;
+  //       SDValue Op1;
+  //       switch (it->getMachineOpcode()) {
+  //         case RISCV::LB:
+  //         case RISCV::LH:
+  //         case RISCV::LW:
+  //         case RISCV::LBU:
+  //         case RISCV::LHU:
+  //         case RISCV::LWU:
+  //         case RISCV::LD:
+
+  //         printf("ADD LOAD Pattern \n");
+
+  //         Op0 = Node->getOperand(0);
+  //         Op1 = Node->getOperand(1);
+  //         CurDAG->SelectNodeTo(Node, RISCV::OINCP, XLenVT, Op0,Op1);
+
+  //         return;
+  //         break;
+          
+  //         case RISCV::SB:
+  //         case RISCV::SH:
+  //         case RISCV::SW:
+  //         case RISCV::SD:
+
+  //         Op0 = Node->getOperand(0);
+  //         Op1 = Node->getOperand(1);
+  //         CurDAG->SelectNodeTo(Node, RISCV::OINCP, XLenVT, Op0,Op1);
+
+  //         printf("ADD STORE Pattern \n");
+
+  //         return;
+  //         break;
+  //       }
+  //     } else {
+
+  //     }
+      
+  //     it++;
+  //   }
+  //   break;
+  // }
+  // case ISD::STORE: {
+  //   printf("STORE operation\n");
+  //   break;
+  // }
 }
 
 void RISCVDAGToDAGISel::Select(SDNode *Node) {
@@ -164,7 +291,19 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
                                              MVT::i32, MVT::Other,
                                              Node->getOperand(0)));
     return;
+
+  case ISD::ADD: {
+    printf("ADD operation %d\n", Node->getOperand(0).getSimpleValueType());
+    break;
   }
+  case ISD::STORE: {
+    printf("STORE operation %d\n", Node->getOperand(1).getSimpleValueType());
+    break;
+  }
+  
+  
+  }
+  
 
   // Select the default instruction.
   SelectCode(Node);

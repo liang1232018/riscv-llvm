@@ -418,6 +418,15 @@ def SLLI : Shift_ri<0, 0b001, "slli">;
 def SRLI : Shift_ri<0, 0b101, "srli">;
 def SRAI : Shift_ri<1, 0b101, "srai">;
 
+// 指针和立即数加法 指令
+let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
+class SRW_ri<bits<3> funct3, string opcodestr>
+    : RVInstI<funct3, OPC_MISC_MEM, (outs GPR:$rd), (ins GPR:$rs1, simm12:$imm12),
+              opcodestr, "$rd, $rs1, $imm12">;
+
+def OINCPI : SRW_ri<0b011, "oincpi">;
+def BSETPI : SRW_ri<0b101, "bsetpi">;
+
 def ADD  : ALU_rr<0b0000000, 0b000, "add">;
 def SUB  : ALU_rr<0b0100000, 0b000, "sub">;
 def SLL  : ALU_rr<0b0000000, 0b001, "sll">;
@@ -428,6 +437,10 @@ def SRL  : ALU_rr<0b0000000, 0b101, "srl">;
 def SRA  : ALU_rr<0b0100000, 0b101, "sra">;
 def OR   : ALU_rr<0b0000000, 0b110, "or">;
 def AND  : ALU_rr<0b0000000, 0b111, "and">;
+
+// 指针和寄存器 加减法指令
+def OINCP : ALU_rr<0b0000100, 0b011, "oincp">;
+def ODECP : ALU_rr<0b0100100, 0b011, "odecp">;
 
 let hasSideEffects = 1, mayLoad = 0, mayStore = 0 in {
 def FENCE : RVInstI<0b000, OPC_MISC_MEM, (outs),
@@ -780,6 +793,15 @@ def : Pat<(simm32hi20:$imm), (LUI (HI20 imm:$imm))>;
 def : Pat<(simm32:$imm), (ADDI (LUI (HI20 imm:$imm)), (LO12Sext imm:$imm))>,
       Requires<[IsRV32]>;
 
+
+// todo 模拟Load/store合并的pattern，写出Marco指令 即 OINCP + load/store
+class ALU_st<bits<7> funct7, bits<3> funct3, string opcodestr>
+    : RVInstR<funct7, funct3, OPC_OP, (outs ), (ins GPR:$rd, GPR:$rs1, GPR:$rs2),
+              opcodestr, "$rd, $rs1, $rs2">;
+def STS : ALU_st<0b0001100, 0b011, "sts">;
+def : Pat<(store GPR:$rs, (add GPR:$rs1, GPR:$rs2)),
+            (STS GPR:$rs, GPR:$rs1, GPR:$rs2)>;
+            
 /// Simple arithmetic operations
 
 def : PatGprGpr<add, ADD>;
@@ -794,6 +816,11 @@ def : PatGprSimm12<xor, XORI>;
 def : PatGprUimmLog2XLen<shl, SLLI>;
 def : PatGprUimmLog2XLen<srl, SRLI>;
 def : PatGprUimmLog2XLen<sra, SRAI>;
+
+// todo 确定一操作数是指针
+// def : Pat<(add ), (OINCP GPR:$rs1, GPR:$rs2)>;
+// class PatGprGpr<SDPatternOperator OpNode, RVInst Inst>
+//    : Pat<(OpNode GPR:$rs1, GPR:$rs2), (Inst GPR:$rs1, GPR:$rs2)>;
 
 // Match both a plain shift and one where the shift amount is masked (this is
 // typically introduced when the legalizer promotes the shift amount and
@@ -1015,6 +1042,8 @@ multiclass StPat<PatFrag StoreOp, RVInst Inst, RegisterClass StTy> {
 defm : StPat<truncstorei8, SB, GPR>;
 defm : StPat<truncstorei16, SH, GPR>;
 defm : StPat<store, SW, GPR>, Requires<[IsRV32]>;
+
+
 
 /// Fences
 
