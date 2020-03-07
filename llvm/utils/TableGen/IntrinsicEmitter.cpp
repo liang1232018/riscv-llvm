@@ -224,7 +224,8 @@ enum IIT_Info {
   IIT_SCALABLE_VEC = 43,
   IIT_SUBDIVIDE2_ARG = 44,
   IIT_SUBDIVIDE4_ARG = 45,
-  IIT_VEC_OF_BITCASTS_TO_INT = 46
+  IIT_VEC_OF_BITCASTS_TO_INT = 46,
+  IIT_IMINFATPTR = 47 
 };
 
 static void EncodeFixedValueType(MVT::SimpleValueType VT,
@@ -249,6 +250,7 @@ static void EncodeFixedValueType(MVT::SimpleValueType VT,
   case MVT::f64: return Sig.push_back(IIT_F64);
   case MVT::f128: return Sig.push_back(IIT_F128);
   case MVT::token: return Sig.push_back(IIT_TOKEN);
+  case MVT::iMINFATPTR: return Sig.push_back(IIT_IMINFATPTR);
   case MVT::Metadata: return Sig.push_back(IIT_METADATA);
   case MVT::x86mmx: return Sig.push_back(IIT_MMX);
   // MVT::OtherVT is used to mean the empty struct type here.
@@ -342,6 +344,11 @@ static void EncodeFixedType(Record *R, std::vector<unsigned char> &ArgCodes,
     } else {
       Sig.push_back(IIT_PTR);
     }
+    return EncodeFixedType(R->getValueAsDef("ElTy"), ArgCodes, NextArgCode, Sig,
+                           Mapping);
+  }
+  case MVT::iMINFATPTR: {
+    Sig.push_back(IIT_IMINFATPTR);
     return EncodeFixedType(R->getValueAsDef("ElTy"), ArgCodes, NextArgCode, Sig,
                            Mapping);
   }
