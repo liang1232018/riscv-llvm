@@ -3461,6 +3461,10 @@ void SelectionDAGBuilder::visitPtrToInt(const User &I) {
   auto &TLI = DAG.getTargetLoweringInfo();
   EVT DestVT = DAG.getTargetLoweringInfo().getValueType(DAG.getDataLayout(),
                                                         I.getType());
+  if (N.getValueType().isMinFatPointer()) {
+    setValue(&I, DAG.getNode(ISD::PTRTOINT, getCurSDLoc(), DestVT, N));
+    return;
+  }
   EVT PtrMemVT =
       TLI.getMemValueType(DAG.getDataLayout(), I.getOperand(0)->getType());
   N = DAG.getPtrExtOrTrunc(N, getCurSDLoc(), PtrMemVT);
@@ -3474,6 +3478,10 @@ void SelectionDAGBuilder::visitIntToPtr(const User &I) {
   SDValue N = getValue(I.getOperand(0));
   auto &TLI = DAG.getTargetLoweringInfo();
   EVT DestVT = TLI.getValueType(DAG.getDataLayout(), I.getType());
+  if (DestVT.isMinFatPointer()) {
+    setValue(&I, DAG.getNode(ISD::INTTOPTR, getCurSDLoc(), DestVT, N));
+    return;
+  }
   EVT PtrMemVT = TLI.getMemValueType(DAG.getDataLayout(), I.getType());
   N = DAG.getZExtOrTrunc(N, getCurSDLoc(), PtrMemVT);
   N = DAG.getPtrExtOrTrunc(N, getCurSDLoc(), DestVT);
@@ -3844,6 +3852,15 @@ void SelectionDAGBuilder::visitGetElementPtr(const User &I) {
   MVT PtrTy = TLI.getPointerTy(DAG.getDataLayout(), AS);
   MVT PtrMemTy = TLI.getPointerMemTy(DAG.getDataLayout(), AS);
 
+  // FIXME: This does not work on GEPs with vectors and minfat pointers, but C-RISC-V
+  // currently doesn't have a vector unit so that is probably not a problem.
+  bool MinFatPointer = N.getValueType().isMinFatPointer();
+  SDValue OrigN = N;
+
+  if (MinFatPointer) {
+    N = DAG.getIntPtrConstant(0, dl);
+  }
+
   // Normalize Vector GEP - all scalar operands should be converted to the
   // splat vector.
   unsigned VectorWidth = I.getType()->isVectorTy() ?
@@ -3937,6 +3954,10 @@ void SelectionDAGBuilder::visitGetElementPtr(const User &I) {
                       N.getValueType(), N, IdxN);
     }
   }
+
+  if (MinFatPointer)
+    N = DAG.getNode(ISD::PTRADD, getCurSDLoc(), OrigN.getValueType(), OrigN,
+        N);
 
   if (PtrMemTy != PtrTy && !cast<GEPOperator>(I).isInBounds())
     N = DAG.getPtrExtendInReg(N, dl, PtrMemTy);
