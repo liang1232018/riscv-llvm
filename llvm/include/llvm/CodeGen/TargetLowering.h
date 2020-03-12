@@ -249,6 +249,14 @@ public:
   /// the pointer type from the data layout.
   /// FIXME: The default needs to be removed once all the code is updated.
   virtual MVT getPointerTy(const DataLayout &DL, uint32_t AS = 0) const {
+    // each pointer from IR will be tranlated into different MVT types at this function
+    // FIXME
+    // I'd like to change the entrance that calls this function,
+    // since in this function, without address space, we can't know the exact pointer type
+    // such as alloca, getelementptr and etc.
+    // when AddressSpace == 64, that means MinFat Pointer doing it.
+    if (AS == 64)
+      return MVT::iMINFATPTR;
     return MVT::getIntegerVT(DL.getPointerSizeInBits(AS));
   }
 
@@ -1223,8 +1231,16 @@ public:
   EVT getValueType(const DataLayout &DL, Type *Ty,
                    bool AllowUnknown = false) const {
     // Lower scalar pointers to native pointer types.
-    if (auto *PTy = dyn_cast<PointerType>(Ty))
-      return getPointerTy(DL, PTy->getAddressSpace());
+    if (auto *PTy = dyn_cast<PointerType>(Ty)) {
+      printf("I believe usual pointer is from here\n");
+      //FIXME
+      // we believe the pointer from here is MinFat Pointer
+      // it seems like some pointer, according the log from cheri is not Minfat Pointer
+      // we change the AddressSpace at SelectionBuild phase 
+      // whereever there is a new SDValue from IR, we will change its AS to 64
+      printf("data layout:%s\n",DL.getStringRepresentation().c_str());
+      return getPointerTy(DL, DL.getProgramAddressSpace());
+    }
 
     if (auto *VTy = dyn_cast<VectorType>(Ty)) {
       Type *EltTy = VTy->getElementType();
